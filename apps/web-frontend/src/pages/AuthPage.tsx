@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Container, Box, Typography, Link, Tabs, Tab } from "@mui/material";
 import AuthForm from "../components/feature/auth/AuthForm";
+import SSOButtons from "../components/feature/auth/SSOButton";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -37,6 +38,8 @@ export default function AuthPage() {
         </Typography>
 
         <AuthForm mode={mode} />
+
+        <SSOButtons/>
 
         <Typography variant="body2" sx={{ mt: 2 }}>
           {mode === "login" ? (
