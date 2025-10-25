@@ -1,12 +1,30 @@
 from fastapi import FastAPI
-from src.db import db
+from fastapi.middleware.cors import CORSMiddleware
+from src.api.routes.auth_routes import router as auth_router
+from src.config.config import settings
+from src.db.db import ensure_indexs
 
-app = FastAPI()
+app = FastAPI(
+    title= "Telemedicine Auth Service",
+    version="1.0.0",
+    description="Handles user signup, login and JWT authentication"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+app.include_router(auth_router)
+
+@app.on_event("startup")
+async def startup_event():
+    await ensure_indexs()
+
 
 @app.get("/")
-async def check_connection():
-    try:
-        await db.command("ping")
-        return {"message": "mongodb connection successfull"}
-    except Exception as e:
-        return {"error": str(e)}
+async def root():
+    return {"message": "Auth Service is running", "status": "ok"}
