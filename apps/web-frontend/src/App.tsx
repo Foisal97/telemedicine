@@ -1,14 +1,15 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import {Routes, Route } from "react-router-dom"
 import AuthPage from "./pages/AuthPage"
 import LandingPage from "./pages/LandingPage"
-import Navbar from "./components/common/Navbar"
+import AppLayout from "./layout/AppLayout"
 function App() {
   return (
     <>
-      <Navbar/>
       <Routes>
+        <Route element={<AppLayout/>}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<AuthPage/>}></Route>
+        </Route>
       </Routes>
     </>
   )

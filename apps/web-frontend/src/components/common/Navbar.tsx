@@ -32,7 +32,7 @@ const Navbar = () => {
             color: "#1976d2",
             marginLeft: 2, // optional small spacing from edge
           }}
-        >
+          onClick={()=> navigate("/")}>
           Total Med
         </Typography>
 
