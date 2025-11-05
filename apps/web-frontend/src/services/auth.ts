@@ -7,5 +7,5 @@ export const signup = async (email: string, password: string) => {
 };
 
 export const login = async (email: string, password: string) => {
-  return axios.post(`${API_URL}/login`, { email, password });
+  return axios.post(`${API_URL}/auth/login`, { email, password });
 };
