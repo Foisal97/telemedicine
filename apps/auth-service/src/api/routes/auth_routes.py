@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from src.middleware.rate_limiter import limiter
 from src.models.user import UserCreate
 from src.services.auth import AuthService
 
@@ -19,9 +21,10 @@ async def signup(user: UserCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login")
-async def login(requset: Request, payload: LoginRequest):
+@limiter.limit("5/minute")
+async def login(request: Request, payload: LoginRequest):
     try:
-        return await auth_service.login(payload.email, payload.password, request=requset)
+        return await auth_service.login(payload.email, payload.password, request=request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

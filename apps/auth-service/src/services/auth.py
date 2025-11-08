@@ -17,13 +17,16 @@ class AuthService:
         self.repo = UserRepository ()
         self.session_repo = SessionRepository()
 
+
     def hashed_password(self, password: str) -> str:
         password = password[:72]
         return pwd_context.hash(password)
-    
+
+
     def verify_password(self, plain_password, hashed_password) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
     
+
     async def signup(self, user: UserCreate):
         existing_user = await self.repo.get_user_by_email(user.email)
         if existing_user:
@@ -40,6 +43,7 @@ class AuthService:
         user_id = await self.repo.create_user(user_data)
         return {"id": user_id, "email": user.email}
     
+
     async def login(self, email: str, password: str, request: Request):
         user = await self.repo.get_user_by_email(email)
         if not user or not self.verify_password(password, user["hased_password"]):
@@ -51,7 +55,12 @@ class AuthService:
         refresh_token = create_refresh_token(data={"sub": user["email"]}, expire_delta=refresh_expire)
 
         expires_at = datetime.utcnow() + refresh_expire
-        ip_address = request.client.host
+        ip_address = request.headers.get("X-Forwarded-For")
+        if ip_address:
+            ip_address = ip_address.split(",")[0].strip()
+            print(f"IP Address from X-Forwarded-For: {ip_address}")
+        else:
+            ip_address = request.client.host    
         user_agent = parse(request.headers.get("User-Agent", ""))
         device_name = f"{user_agent.browser.family} on {user_agent.os.family}"
  
@@ -68,6 +77,7 @@ class AuthService:
             "token_type": "bearer"
         }
     
+
     async def refresh_access_token(self, refresh_token: str):
         try:
             email = verify_refresh_token(refresh_token)

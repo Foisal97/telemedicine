@@ -1,4 +1,9 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+
+from src.middleware.cors import add_cors_middleware
+from src.middleware.rate_limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.auth_routes import router as auth_router
 from src.config.config import settings
@@ -10,15 +15,18 @@ app = FastAPI(
     description="Handles user signup, login and JWT authentication"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+
+app.state.limiter = limiter
+add_cors_middleware(app)
 
 app.include_router(auth_router)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Try again later."}
+    )
 
 @app.on_event("startup")
 async def startup_event():
