@@ -1,9 +1,12 @@
+from fastapi import Request
+from user_agents import parse
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
 from src.config.config import settings
 from src.repositories.user import UserRepository
+from src.repositories.seesions import SessionRepository
 from src.models.user import UserCreate
 from src.utils.token import create_access_token, create_refresh_token, verify_refresh_token
 
@@ -12,6 +15,7 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 class AuthService:
     def __init__(self):
         self.repo = UserRepository ()
+        self.session_repo = SessionRepository()
 
     def hashed_password(self, password: str) -> str:
         password = password[:72]
@@ -36,13 +40,28 @@ class AuthService:
         user_id = await self.repo.create_user(user_data)
         return {"id": user_id, "email": user.email}
     
-    async def login(self, email: str, password: str):
+    async def login(self, email: str, password: str, request: Request):
         user = await self.repo.get_user_by_email(email)
         if not user or not self.verify_password(password, user["hased_password"]):
             raise ValueError("Invalid Credentials")
+        
         access_token = create_access_token(data={"sub": user["email"]}, expire_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-        refresh_token = create_refresh_token(data={"sub": user["email"]}, expire_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+        
+        refresh_expire = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        refresh_token = create_refresh_token(data={"sub": user["email"]}, expire_delta=refresh_expire)
 
+        expires_at = datetime.utcnow() + refresh_expire
+        ip_address = request.client.host
+        user_agent = parse(request.headers.get("User-Agent", ""))
+        device_name = f"{user_agent.browser.family} on {user_agent.os.family}"
+ 
+        await self.session_repo.create_session(
+            email=user["email"],
+            refresh_token=refresh_token,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            device_name=device_name
+        )
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -52,6 +71,11 @@ class AuthService:
     async def refresh_access_token(self, refresh_token: str):
         try:
             email = verify_refresh_token(refresh_token)
+            is_valid_session = await self.session_repo.verify_session(email, refresh_token)
+
+            if not is_valid_session:
+                raise ValueError("Invalid Session")
+                        
             new_access_token = create_access_token(data={"sub": email})
             return {
                 "access_token": new_access_token,
