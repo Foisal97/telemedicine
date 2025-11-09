@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Body
 from pydantic import BaseModel
 
 from src.middleware.rate_limiter import limiter
@@ -25,6 +25,14 @@ async def signup(user: UserCreate):
 async def login(request: Request, payload: LoginRequest):
     try:
         return await auth_service.login(payload.email, payload.password, request=request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/refresh")
+async def refresh_token(refresh_token: str = Body(..., embed=True)):
+    try:
+        return await auth_service.refresh_access_token(refresh_token)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

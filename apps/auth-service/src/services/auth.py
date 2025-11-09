@@ -79,18 +79,20 @@ class AuthService:
     
 
     async def refresh_access_token(self, refresh_token: str):
-        try:
-            email = verify_refresh_token(refresh_token)
-            is_valid_session = await self.session_repo.verify_session(email, refresh_token)
-
-            if not is_valid_session:
-                raise ValueError("Invalid Session")
-                        
-            new_access_token = create_access_token(data={"sub": email})
-            return {
-                "access_token": new_access_token,
-                "token_type": "bearer"
-            }
-        except ValueError:
+        email = verify_refresh_token(refresh_token)
+        if not email:
             raise ValueError("Invalid Refresh Token")
+        
+        session = await self.session_repo.get_session_by_token(refresh_token)
+        print("session retrieved for refresh:", session)
+        if not session:
+            raise ValueError("Session Not Found")
+        
+        new_access_token = create_access_token(data={"sub": email}, expire_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+        return {
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        }
+
+    
     
