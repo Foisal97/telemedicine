@@ -1,4 +1,5 @@
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from user_agents import parse
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
@@ -71,11 +72,38 @@ class AuthService:
             ip_address=ip_address,
             device_name=device_name
         )
-        return {
+
+        response = JSONResponse(content={
             "access_token": access_token,
-            "refresh_token": refresh_token,
             "token_type": "bearer"
-        }
+        })
+
+        # Cookie settings - use secure=False and samesite="lax" for localhost development
+        secure_flag = getattr(settings, "COOKIE_SECURE", False)
+        samesite_val = getattr(settings, "COOKIE_SAMESITE", "lax")
+        
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=secure_flag,
+            samesite=samesite_val,
+            max_age=60 * 60 * 24 * 7,
+            path="/"
+        )
+        
+        # Debug: Print response details
+        print("=" * 50)
+        print("Response Headers:", dict(response.headers))
+        print("Cookie Settings:")
+        print(f"  - secure: {secure_flag}")
+        print(f"  - samesite: {samesite_val}")
+        print(f"  - httponly: True")
+        print(f"  - max_age: {60 * 60 * 24 * 7}")
+        print(f"  - refresh_token length: {len(refresh_token)}")
+        print("=" * 50)
+        
+        return response
     
 
     async def refresh_access_token(self, refresh_token: str):
@@ -84,7 +112,7 @@ class AuthService:
             raise ValueError("Invalid Refresh Token")
         
         session = await self.session_repo.get_session_by_token(refresh_token)
-        print("session retrieved for refresh:", session)
+        
         if not session:
             raise ValueError("Session Not Found")
         
